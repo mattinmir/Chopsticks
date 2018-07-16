@@ -1,4 +1,7 @@
-. .\Hand.ps1
+using module .\Hand.psm1
+using module .\Art.psm1
+
+
 
 Class Player
 {
@@ -9,6 +12,7 @@ Class Player
     {
         $this.left = [Hand]::new()
         $this.right = [Hand]::new()
+
     }
 
     [int32] GetFingers([String] $hand)
@@ -33,13 +37,13 @@ Class Player
     {
         if ($Hand -eq "Left")
         {
-            $Left.Add($value)
+            $this.Left.Add($value)
             return $this.Left.fingers
         }
 
         elseif ($Hand -eq "Right")
         {
-            $Right.Add($value)
+            $this.Right.Add($value)
             return $this.Right.fingers
         }
 
@@ -49,7 +53,7 @@ Class Player
         }
     }
 
-    [bool] split()
+    [bool] Split()
     {
         $fingers = ($this.Left.fingers, $this.right.fingers)
 
@@ -82,4 +86,15 @@ Class Player
             Return $false
         }
     }
+
+    [String] PrintLeft()
+    {
+        Return $lhands[$this.Left.fingers]
+    }
+
+    [String] PrintRight()
+    {
+        Return $rhands[$this.Right.fingers]
+    }
+
 }
