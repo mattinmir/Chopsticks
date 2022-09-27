@@ -42,6 +42,33 @@ function Set-State ($L1,$R1,$L2,$R2,$turnval,[ref]$turn)
     $turn.Value = ($turnval-1)
 }
 
+# Turnplayer 1 or 2
+function Get-Action ($turnplayer, $currentstate, $statemap_obj)
+{
+    $c = $currentstate
+    if ($turnplayer -eq 1)
+    {
+        $state = $statemap_obj | Where-Object {
+            $_.L1 -eq $c.L1 -and `
+            $_.R1 -eq $c.R1 -and `
+            $_.L2 -eq $c.L2 -and `
+            $_.R2 -eq $c.R2
+        }
+    }
+    elseif ($turnplayer -eq 2)
+    {
+        $state = $statemap_obj | Where-Object {
+            $_.L1 -eq $c.L2 -and `
+            $_.R1 -eq $c.R2 -and `
+            $_.L2 -eq $c.L1 -and `
+            $_.R2 -eq $c.R1
+        }
+    }
+
+    return $state.result 
+}
+
+
 
 $histories = @()
 
@@ -85,6 +112,8 @@ foreach ($i in 0..($iterations-1))
 
             1
             {   
+                #$action = Get-Action -turnplayer $turn+1 -currentstate 
+
                 $state = $states | Where {
                     $_.L1 -eq $p1.Left.fingers -and `
                     $_.R1 -eq $p1.Right.fingers -and `

@@ -211,58 +211,69 @@ Class Player
         }
     }
 
-    [int32] AddFingers([int32] $value, [String] $hand)
+    [bool] legalAddition([int32] $value, [String] $hand)
     {
-        if ($Hand -eq "L" -and $this.Left.fingers -ne 0)
+        $isLegal = $true
+        if (($Hand -eq "L" -and $this.Left.fingers -eq 0) -or ($Hand -eq "R" -and $this.Right.fingers -eq 0))
         {
-            $this.Left.Add($value)
-            return $this.Left.fingers
+            $isLegal = $false
         }
+        return $isLegal
+    }
 
-        elseif ($Hand -eq "R" -and $this.Right.fingers -ne 0)
-        {
-            $this.Right.Add($value)
-            return $this.Right.fingers
-        }
+    [bool] legalSplit()
+    {
+        $validFingerStates = @()
+        $validFingerStates += [tuple]::Create(0,2)
+        $validFingerStates += [tuple]::Create(0,4)
+        $validFingerStates += [tuple]::Create(1,3)
+        $validFingerStates += [tuple]::Create(2,4)
 
-        else
+        $fingers = ($this.Left.fingers, $this.right.fingers) | Sort-Object
+        
+        return [tuple]::Create($fingers[0], $fingers[1]) -in $validFingerStates
+    }
+
+    [int] AddFingers([int32] $value, [String] $hand)
+    {
+        $result = -1
+        if ($this.legalAddition($value, $hand))
         {
-            Return -1
+            if ($Hand -eq "L")
+            {
+                $this.Left.Add($value)
+                $result = $this.Left.fingers
+            }
+            elseif ($Hand -eq "R")
+            {
+                $this.Right.Add($value)
+                $result = $this.Right.fingers
+            }
         }
+        return $result
     }
 
     [bool] Split()
     {
-        $fingers = ($this.Left.fingers, $this.right.fingers)
+        $result = $false
+        if ($this.legalSplit())
+        {
+            $fingers = ($this.Left.fingers, $this.right.fingers) | Sort-Object
+            $map = @{
+                [tuple]::Create(0,2) = (1,1)
+                [tuple]::Create(0,4) = (2,2)
+                [tuple]::Create(1,3) = (2,2)
+                [tuple]::Create(2,4) = (3,3)
+            } 
+            $splitFingers = $map[[tuple]::Create($fingers[0], $fingers[1])]
 
-        If (-not (Compare-Object -ReferenceObject $fingers -DifferenceObject (0,2)))
-        {
-            $this.left.fingers = 1
-            $this.right.fingers = 1
-            Return $true
+            $this.left.fingers = $splitFingers[0]
+            $this.right.fingers = $splitFingers[1]
+
+            $result = $true
         }
-        ElseIf (-not (Compare-Object -ReferenceObject $fingers -DifferenceObject (0,4)))
-        {
-            $this.left.fingers = 2
-            $this.right.fingers = 2
-            Return $true
-        }
-        ElseIf (-not (Compare-Object -ReferenceObject $fingers -DifferenceObject (1,3)))
-        {
-            $this.left.fingers = 2
-            $this.right.fingers = 2
-            Return $true
-        }
-        ElseIf (-not (Compare-Object -ReferenceObject $fingers -DifferenceObject (2,4)))
-        {
-            $this.left.fingers = 3
-            $this.right.fingers = 3
-            Return $true
-        }
-        else
-        {
-            Return $false
-        }
+
+        return $result
     }
 
     [Void] Print()
