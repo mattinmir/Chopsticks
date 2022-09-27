@@ -8,29 +8,35 @@ class Game
     [Array] $players
     [Int] $moves
     [Array] $history
+    [Bool] $headless
+    [int] $winner
 
-    Game([Int]$turn)
+    Game([Int]$turn, [Bool]$headless)
     {
         $this.p1 = [Player]::new([System.ConsoleColor]::Green)
         $this.p2 = [Player]::new([System.ConsoleColor]::Blue)
         $this.players = @($this.p1, $this.p2)
         $this.moves = 1
         $this.history = @()
+        $this.headless = $headless
 
         $this.print($turn)
     }
 
     [void] print($turn)
     {
-        $turnplayer = $this.players[$turn]
+        if (-not $this.headless)
+        {
+            $turnplayer = $this.players[$turn]
 
-        Clear-Host
-    
-        Write-Host "Move $this.moves" -ForegroundColor Yellow
-        Write-Host "Turn: Player $($this.turn + 1)" -ForegroundColor $turnplayer.colour
+            Clear-Host
+        
+            Write-Host "Move $($this.moves)" -ForegroundColor Yellow
+            Write-Host "Turn: Player $($this.turn + 1)" -ForegroundColor $turnplayer.colour
 
-        $this.p1.print()
-        $this.p2.print()
+            $this.p1.print()
+            $this.p2.print()
+        }
     }
 
     [PSCustomObject] currentState($turn)
@@ -112,7 +118,7 @@ class Game
         } 
 
         # If CPU turn, wait a second to simulate thinking
-        if ($turn -eq "0") {Start-Sleep 1}
+        if ($turn -eq "0" -and -not $this.headless) {Start-Sleep 1}
 
         $this.moves++
         $this.print($turn)
