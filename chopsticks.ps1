@@ -6,18 +6,12 @@ Using Module .\Game.psm1
 function Get-Action ($currentstate, $statemap_obj)
 {
     $c = $currentstate
-    $state = $statemap_obj | Where-Object {
-        $_.L1 -eq $c.L1 -and `
-        $_.R1 -eq $c.R1 -and `
-        $_.L2 -eq $c.L2 -and `
-        $_.R2 -eq $c.R2
-    }
-    return $state.result 
+    return $statemap_obj[("{0}{1}{2}{3}" -f $c.l1, $c.r1, $c.l2, $c.r2)]
 }
 
 $headless = $true
 if ($headless) {$iterations = 1000} else {$iterations = 1}
-if ($headless) {$rounds = 10} else {$rounds = 1}
+if ($headless) {$rounds = 1} else {$rounds = 1}
 
 
 $CPU = 0
@@ -28,7 +22,7 @@ $states = @{}
 
 $stable = "v1.0"
 $experimentalMajor = "v2"
-$experimentalMinor = 10
+$experimentalMinor = 0
 if (Get-ChildItem ".\statemaps\$experimentalMajor.$($experimentalMinor + 1).csv" -ErrorAction SilentlyContinue)
 {
     throw "Current config will overwrite existing versions"
@@ -36,26 +30,44 @@ if (Get-ChildItem ".\statemaps\$experimentalMajor.$($experimentalMinor + 1).csv"
 
 if (-not $headless)
 {
-    $states.Add(0,(import-csv -Path ".\statemaps\$stable.csv"))
+    $hashstatesStable = @{}
+    import-csv -Path ".\statemaps\$stable.csv" | foreach {$hashstatesStable.add(("{0}{1}{2}{3}" -f $_.l1,$_.r1,$_.l2,$_.r2), $_.result)}
+    $states.Add(0,$hashstatesStable)
 }
 else 
 {
-    $states.Add(0,(import-csv -Path ".\statemaps\v0.csv")) 
-    $states.Add(1,(import-csv -Path ".\statemaps\$experimentalMajor.$experimentalMinor.csv"))
+    $hashstatesEmpty = @{}
+    import-csv -Path ".\statemaps\v0.csv" | foreach {$hashstatesEmpty.add("{0}{1}{2}{3}" -f ($_.l1,$_.r1,$_.l2,$_.r2), $_.result)}
+    $states.Add(0,$hashstatesEmpty)
+
+    $hashstatesExp = @{}
+    import-csv -Path ".\statemaps\$experimentalMajor.$experimentalMinor.csv" | foreach {$hashstatesExp.add(("{0}{1}{2}{3}" -f $_.l1,$_.r1,$_.l2,$_.r2), $_.result)}
+    $states.Add(1,$hashstatesExp)
 }
 
 
 
 foreach ($round in 1..$rounds)
 {
+    
     Write-Host "`nRound: $round"
     $games = @()
+    $roundStartTime = (get-date)
     foreach ($i in 0..($iterations-1))
     {
+        $draw = $false
         $turn = (Get-Random) % 2
         [Game] $game = [Game]::new($turn, $headless)
-        :startturn while (-not ($game.p1.dead() -or $game.p2.dead()))
+        :startturn while (-not ($game.p1.dead() -or $game.p2.dead() -or $draw))
         {
+            # Draw if timeout
+            if ($game.moves -gt 60)
+            {
+                $draw = $true
+                $game.winner = 0
+                continue :startturn
+            }
+
             $turnplayer = $game.players[$turn]
             if (-not $headless -and $turn -ne $CPU)
             {
@@ -92,7 +104,7 @@ foreach ($round in 1..$rounds)
                     1
                     {   
                         $action = Get-Action -currentstate ($game.currentState($turn)) -statemap_obj $states[[int]($turn)]
-                        if ([String]::IsNullOrEmpty($Action))
+                        if ([String]::IsNullOrWhiteSpace($Action))
                         {
                             $src = @("L","R","S")[(Get-Random) % 3]  
                             $dest = ""
@@ -148,6 +160,7 @@ foreach ($round in 1..$rounds)
         $p2wins = $grouped | where {$_.name -eq 2} | select -ExpandProperty count
 
         Write-Host "P1 Wins:$P1Wins`nP2 Wins:$P2Wins"
+        Write-Host "Round Time: $(((get-date) - $roundStartTime).totalseconds)"
 
         $winningMoves = @()
         foreach ($R2 in 0..4)
@@ -217,12 +230,7 @@ foreach ($round in 1..$rounds)
             $ns = $newStates[$i]
             if ($ns.result -eq "")
             {
-                $oldState = $states[1] | Where {
-                    $_.L1 -eq $ns.L1 -and `
-                    $_.R1 -eq $ns.R1 -and `
-                    $_.L2 -eq $ns.L2 -and `
-                    $_.R2 -eq $ns.R2 
-                }
+                $oldState = $states[1][("{0}{1}{2}{3}" -f $ns.l1, $ns.r1, $ns.l2, $ns.r2)]
                 $newStates[$i].result = $oldState.result
             }
         }
@@ -230,6 +238,6 @@ foreach ($round in 1..$rounds)
         
         $experimentalMinor++
         $newStates | Export-Csv -Path ".\statemaps\$experimentalMajor.$experimentalMinor.csv" -UseQuotes Never
-        $states[1] = (import-csv -Path ".\statemaps\$experimentalMajor.$experimentalMinor.csv")
+        $states[(($round-1) % 2)] = (import-csv -Path ".\statemaps\$experimentalMajor.$experimentalMinor.csv")
     }
 }
